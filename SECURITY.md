@@ -5,9 +5,12 @@ Email security concerns to bobbymcwilliams@echo-op.com. Do not open public issue
 
 ## Guarantees
 - No raw shell exposure
-- Mutating tools require exact `confirm: "EXECUTE"`
-- Secrets never returned in tool results
-- Audit log under `data/audit.jsonl`
+- No mutating desktop or OpenClaw tools
+- No caller-supplied executable paths, URLs, environment names, or model IDs
+- Secrets, sessions, account identifiers, paths, prompts, and raw provider payloads are omitted from tool results
+- Structured diagnostics are written to stderr with recursive redaction and bounded values
+- Subprocesses are headless, allowlisted, time-bounded, and output-bounded
+- The signed OpenAI desktop package is never modified
 
 ## MCP resource
-Production audience path: `/oauth-mcp-desktop-ops-v1`
+The desktop-only plugin uses stdio through `.mcp.json`. The optional legacy HTTP compatibility server binds to loopback only.

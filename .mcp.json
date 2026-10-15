@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "echo-desktop-ops": {
+      "cwd": ".",
+      "command": "node",
+      "args": ["./dist/stdio.js"]
+    }
+  }
+}

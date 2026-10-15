@@ -1,19 +1,22 @@
 {
   "name": "@echoomegaprime/echo-desktop-ops",
-  "version": "1.0.0",
-  "description": "Governed desktop ops MCP \u2014 focus, notify, screenshot meta for ECHO fleet consoles. No raw shell, no pixel dumps to models.",
+  "version": "2.0.0",
+  "description": "Governed Codex Desktop control deck for truthful ECHO, fleet, OpenClaw, memory, GPU, model-catalog, and build-gate status.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "echo-desktop-ops": "dist/cli.js"
+    "echo-desktop-ops": "dist/stdio.js",
+    "echo-desktop-ops-http": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test tests/**/*.test.ts",
-    "start": "node dist/cli.js",
-    "dev": "tsx src/cli.ts"
+    "package:stage": "node scripts/stage-plugin.mjs",
+    "start": "node dist/stdio.js",
+    "start:http": "node dist/cli.js",
+    "dev": "tsx src/stdio.ts"
   },
   "engines": {
     "node": ">=20"
@@ -30,6 +33,11 @@
     "echoomegaprime",
     "echo-desktop-ops"
   ],
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^1.0.1",
+    "@modelcontextprotocol/sdk": "^1.20.2",
+    "zod": "^3.25.76"
+  },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "tsx": "^4.19.2",

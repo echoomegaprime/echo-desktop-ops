@@ -1,6 +1,8 @@
 # Changelog
 
 ## 2.0.0 — 2026-10-15
+- Made OpenClaw health probing resilient to slow Gateway wake-up and retained specific structured failure reasons.
+- Added a redacted configured-route fallback when the published OpenClaw model catalog times out or is not ready.
 - Replaced synthetic focus, notification, window, and screenshot success claims with explicit unsupported results.
 - Added a supported MCP App control deck with an in-panel status rail and inline, fullscreen, and picture-in-picture modes.
 - Added measured RAM and QUENCH NVIDIA GPU telemetry.

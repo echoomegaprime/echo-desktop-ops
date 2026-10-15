@@ -9,7 +9,7 @@ export type OpenClawOperation = "health" | "models" | "config_validate";
 export function buildOpenClawArgs(operation: OpenClawOperation): string[] {
   switch (operation) {
     case "health":
-      return ["health", "--json", "--timeout", "2500"];
+      return ["health", "--json", "--timeout", "30000"];
     case "models":
       return ["models", "list", "--json"];
     case "config_validate":
@@ -189,14 +189,17 @@ export function sanitizeOpenClawModelStatus(value: unknown): { state: SourceStat
   };
 }
 
-function classifyOpenClawJsonError(stdout: string): { state: "blocked" | "unknown" | "degraded"; reason: string } | null {
+export function classifyOpenClawJsonError(stdout: string): { state: "blocked" | "unknown" | "degraded"; reason: string } | null {
   try {
     const root = JSON.parse(stdout) as unknown;
     if (!isRecord(root) || root.ok !== false || !isRecord(root.error)) return null;
+    const type = safeString(root.error.type, 100)?.toLowerCase() ?? "";
+    const kind = safeString(root.error.kind, 100)?.toLowerCase() ?? "";
     const message = safeString(root.error.message, 500)?.toLowerCase() ?? "";
     if (message.includes("auth") || message.includes("credential") || message.includes("login")) return { state: "blocked", reason: "authentication_required_or_failed" };
     if (message.includes("catalog")) return { state: "unknown", reason: "published_model_catalog_unavailable" };
-    if (message.includes("gateway")) return { state: "unknown", reason: "gateway_catalog_error" };
+    if (type.includes("gateway") && kind === "timeout") return { state: "unknown", reason: "gateway_health_timeout" };
+    if (message.includes("gateway")) return { state: "unknown", reason: "gateway_not_reachable" };
     return { state: "degraded", reason: "openclaw_cli_error" };
   } catch {
     return null;
@@ -238,16 +241,16 @@ export async function runOpenClawReadOnly(operation: OpenClawOperation, runner: 
   if (!entry) return { state: "unknown", reason: "openclaw_not_installed", operation };
   const args = [entry, ...buildOpenClawArgs(operation)];
   const result = await runner(process.execPath, args, {
-    timeout_ms: operation === "health" ? 12_000 : 12_000,
+    timeout_ms: operation === "health" ? 40_000 : operation === "models" ? 15_000 : 12_000,
     max_output_bytes: 524_288,
     cwd: dirname(entry),
   });
   if (result.exit_code !== 0 || result.timed_out || result.output_limited || result.spawn_error) {
-    if (operation === "models" && !result.timed_out && !result.output_limited && !result.spawn_error) {
-      const firstFailure = classifyOpenClawJsonError(result.stdout);
-      if (firstFailure?.reason === "published_model_catalog_unavailable") {
+    const firstFailure = classifyOpenClawJsonError(result.stdout);
+    if (operation === "models" && !result.output_limited && !result.spawn_error) {
+      if (result.timed_out || firstFailure?.reason === "published_model_catalog_unavailable") {
         const fallback = await runner(process.execPath, [entry, "models", "status", "--json"], {
-          timeout_ms: 20_000,
+          timeout_ms: 30_000,
           max_output_bytes: 524_288,
           cwd: dirname(entry),
         });
@@ -257,6 +260,7 @@ export async function runOpenClawReadOnly(operation: OpenClawOperation, runner: 
       }
       if (firstFailure) return { ...firstFailure, operation, duration_ms: result.duration_ms };
     }
+    if (firstFailure) return { ...firstFailure, operation, duration_ms: result.duration_ms };
     return { ...classifyCommandFailure(result), operation, duration_ms: result.duration_ms };
   }
   try {

@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   buildOpenClawArgs,
+  classifyOpenClawJsonError,
   sanitizeOpenClawHealth,
   sanitizeOpenClawModelStatus,
   sanitizeOpenClawModels,
@@ -9,10 +10,21 @@ import {
 
 describe("OpenClaw adapter", () => {
   it("maps only fixed read-only operations to CLI arguments", () => {
-    assert.deepEqual(buildOpenClawArgs("health"), ["health", "--json", "--timeout", "2500"]);
+    assert.deepEqual(buildOpenClawArgs("health"), ["health", "--json", "--timeout", "30000"]);
     assert.deepEqual(buildOpenClawArgs("models"), ["models", "list", "--json"]);
     assert.deepEqual(buildOpenClawArgs("config_validate"), ["config", "validate", "--json"]);
     assert.throws(() => buildOpenClawArgs("shell" as never), /unsupported_openclaw_operation/);
+  });
+
+  it("preserves specific structured gateway and catalog failures", () => {
+    assert.deepEqual(classifyOpenClawJsonError(JSON.stringify({
+      ok: false,
+      error: { type: "gateway_transport_error", kind: "timeout", message: "Gateway not reachable after waiting 10 s." },
+    })), { state: "unknown", reason: "gateway_health_timeout" });
+    assert.deepEqual(classifyOpenClawJsonError(JSON.stringify({
+      ok: false,
+      error: { type: "cli_error", message: "Model catalog is not ready." },
+    })), { state: "unknown", reason: "published_model_catalog_unavailable" });
   });
 
   it("allowlists health fields and drops sessions, identifiers, paths, and tokens", () => {

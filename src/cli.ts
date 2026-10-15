@@ -3,7 +3,7 @@ import { createMcpServer } from "./lib/mcp-http.js";
 import { tools } from "./tools.js";
 
 const name = "echo-desktop-ops";
-const version = "1.0.0";
+const version = "2.0.0";
 
 const server = createMcpServer({
   name,

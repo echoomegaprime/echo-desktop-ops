@@ -1,124 +1,84 @@
-import { completeJob, createJob, loadJson, saveJson, audit } from "./lib/store.js";
 import type { ToolDef } from "./lib/mcp-http.js";
 
 export const DESKTOP_TARGETS = [
-  { id: "desk_forge_console", label: "FORGE console workspace", node: "forge", allow: ["focus", "screenshot_meta", "notify"] },
-  { id: "desk_anvil_hub", label: "ANVIL hub desktop", node: "anvil", allow: ["focus", "notify"] },
-  { id: "desk_hammer_batch", label: "HAMMER batch desk", node: "hammer", allow: ["notify"] },
-  { id: "desk_temper_overflow", label: "TEMPER overflow desk", node: "temper", allow: ["focus", "notify"] },
+  { id: "desk_forge_console", label: "FORGE console workspace", node: "FORGE", state: "unknown" },
+  { id: "desk_anvil_hub", label: "ANVIL hub desktop", node: "ANVIL", state: "unknown" },
+  { id: "desk_hammer_batch", label: "HAMMER batch desk", node: "HAMMER", state: "unknown" },
+  { id: "desk_temper_overflow", label: "TEMPER overflow desk", node: "TEMPER", state: "unknown" },
+  { id: "desk_crucible_auth", label: "CRUCIBLE authorization boundary", node: "CRUCIBLE", state: "unknown" },
 ] as const;
 
 export const DESKTOP_ACTIONS = [
-  { id: "desktop.focus_target", risk: "low", mutating: true },
-  { id: "desktop.notify", risk: "low", mutating: true },
-  { id: "desktop.screenshot_meta", risk: "low", mutating: false },
-  { id: "desktop.list_windows_meta", risk: "info", mutating: false },
+  { id: "desktop.focus_target", supported: false, reason: "no_verified_focus_adapter" },
+  { id: "desktop.notify", supported: false, reason: "no_verified_notification_adapter" },
+  { id: "desktop.screenshot_meta", supported: false, reason: "no_verified_capture_adapter" },
+  { id: "desktop.list_windows_meta", supported: false, reason: "no_verified_window_inventory_adapter" },
 ] as const;
 
 export function desktopStatus() {
-  const jobs = loadJson<unknown[]>("jobs.json", []);
   return {
-    status: "live",
+    status: "ready",
     bundle: "echo-desktop-ops",
-    version: "1.0.0",
+    version: "2.0.0",
     targets: DESKTOP_TARGETS.length,
-    actions: DESKTOP_ACTIONS.length,
-    jobs: jobs.length,
+    actions: 0,
+    deprecated_actions: DESKTOP_ACTIONS.length,
+    truth_policy: "measured_states_only",
     policy: {
       no_raw_shell: true,
       no_secret_return: true,
       no_pixel_buffer_to_model: true,
-      confirm: "EXECUTE",
+      no_synthetic_success: true,
+      signed_desktop_package_modified: false,
     },
   };
 }
 
 export function desktopTargets() {
-  return { targets: DESKTOP_TARGETS, count: DESKTOP_TARGETS.length };
+  return { targets: DESKTOP_TARGETS, count: DESKTOP_TARGETS.length, state_meaning: "unknown means not measured" };
 }
 
 export function desktopActions() {
-  return { actions: DESKTOP_ACTIONS };
+  return { actions: DESKTOP_ACTIONS, supported_count: 0 };
 }
 
-export function desktopAction(actionId: string, targetId?: string, message?: string, confirm?: string) {
-  const action = DESKTOP_ACTIONS.find((a) => a.id === actionId);
-  if (!action) return { ok: false as const, error: "unknown_action", allowed: DESKTOP_ACTIONS.map((a) => a.id) };
-  if (action.mutating && confirm !== "EXECUTE") {
-    return { ok: false as const, error: "confirm_required", confirm_word: "EXECUTE" };
-  }
-  const target = targetId
-    ? DESKTOP_TARGETS.find((t) => t.id === targetId)
-    : DESKTOP_TARGETS[0];
-  if (targetId && !target) return { ok: false as const, error: "unknown_target" };
-
-  const job = createJob("desktop_action", "desktop_action", {
-    actionId,
-    targetId: target?.id,
-    message: message?.slice(0, 200),
-  });
-
-  let detail: Record<string, unknown> = { applied: true, channel: "governed_desktop" };
-  if (actionId === "desktop.screenshot_meta") {
-    detail = {
-      note: "meta only — no pixel buffer returned to model",
-      width: 1920,
-      height: 1080,
-      display: target?.node ?? "unknown",
-      captured: false,
-    };
-  } else if (actionId === "desktop.list_windows_meta") {
-    detail = {
-      windows: [
-        { id: "w1", title: `${target?.label ?? "console"} — agent`, focused: false },
-        { id: "w2", title: "Terminal", focused: false },
-      ],
-    };
-  } else if (actionId === "desktop.notify") {
-    detail = { notified: true, message: (message || "ECHO desktop notify").slice(0, 200), target: target?.id };
-  } else if (actionId === "desktop.focus_target") {
-    detail = { focused: true, target: target?.id, node: target?.node };
-  }
-
-  const result = {
-    ok: true as const,
+export function desktopAction(actionId: string, targetId?: string, _message?: string, _confirm?: string) {
+  const action = DESKTOP_ACTIONS.find((candidate) => candidate.id === actionId);
+  if (!action) return { ok: false as const, error: "unknown_action", allowed: DESKTOP_ACTIONS.map((candidate) => candidate.id) };
+  if (targetId && !DESKTOP_TARGETS.some((target) => target.id === targetId)) return { ok: false as const, error: "unknown_target" };
+  return {
+    ok: false as const,
+    error: "unsupported_no_verified_adapter",
     action_id: actionId,
-    target: target ?? null,
-    accepted: true,
-    detail,
-    job_id: job.id,
+    target_id: targetId ?? null,
+    reason: action.reason,
+    applied: false,
+    migration: "Use echo_desktop_snapshot for measured state. A future control adapter must publish execution and readback evidence.",
   };
-  completeJob(job.id, result);
-  audit("desktop.action", { actionId, targetId: target?.id, jobId: job.id });
-  // session log
-  const log = loadJson<unknown[]>("desktop-log.json", []);
-  log.unshift({ at: new Date().toISOString(), ...result });
-  saveJson("desktop-log.json", log.slice(0, 200));
-  return result;
 }
 
 export const tools: ToolDef[] = [
   {
     name: "desktop_status",
-    description: "Desktop ops bundle status and policy",
-    inputSchema: { type: "object", properties: {} },
+    description: "Legacy connector status. Does not claim live target state.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
     handler: () => desktopStatus(),
   },
   {
     name: "desktop_targets",
-    description: "List allowlisted desktop targets",
-    inputSchema: { type: "object", properties: {} },
+    description: "List named desktop targets without inventing health.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
     handler: () => desktopTargets(),
   },
   {
     name: "desktop_actions",
-    description: "List allowlisted desktop actions",
-    inputSchema: { type: "object", properties: {} },
+    description: "List deprecated synthetic actions and their disabled state.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
     handler: () => desktopActions(),
   },
   {
     name: "desktop_action",
-    description: "Run allowlisted desktop action (mutates need confirm=EXECUTE)",
+    description: "Compatibility endpoint that rejects unverified desktop control actions.",
     inputSchema: {
       type: "object",
       properties: {
@@ -128,13 +88,13 @@ export const tools: ToolDef[] = [
         confirm: { type: "string" },
       },
       required: ["action_id"],
+      additionalProperties: false,
     },
-    handler: (a) =>
-      desktopAction(
-        String(a.action_id ?? ""),
-        a.target_id != null ? String(a.target_id) : undefined,
-        a.message != null ? String(a.message) : undefined,
-        a.confirm != null ? String(a.confirm) : undefined,
-      ),
+    handler: (args) => desktopAction(
+      String(args.action_id ?? ""),
+      args.target_id != null ? String(args.target_id) : undefined,
+      args.message != null ? String(args.message) : undefined,
+      args.confirm != null ? String(args.confirm) : undefined,
+    ),
   },
 ];

@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { redactForLog } from "./redaction.js";
 
 const DATA = process.env.ECHO_DATA_DIR || join(process.cwd(), "data");
 
@@ -9,6 +10,7 @@ export function ensureData() {
 }
 
 export function loadJson<T>(name: string, fallback: T): T {
+  if (!/^[a-z0-9_.-]+$/i.test(name)) return fallback;
   ensureData();
   const p = join(DATA, name);
   if (!existsSync(p)) return fallback;
@@ -20,8 +22,9 @@ export function loadJson<T>(name: string, fallback: T): T {
 }
 
 export function saveJson(name: string, data: unknown) {
+  if (!/^[a-z0-9_.-]+$/i.test(name)) throw new Error("invalid_store_name");
   ensureData();
-  writeFileSync(join(DATA, name), JSON.stringify(data, null, 2) + "\n");
+  writeFileSync(join(DATA, name), JSON.stringify(redactForLog(data), null, 2) + "\n");
 }
 
 export function id(prefix: string) {
@@ -74,6 +77,6 @@ export function completeJob(jobId: string, result: unknown, error?: string) {
 
 export function audit(event: string, detail: Record<string, unknown>) {
   ensureData();
-  const line = JSON.stringify({ at: new Date().toISOString(), event, ...detail }) + "\n";
+  const line = JSON.stringify(redactForLog({ at: new Date().toISOString(), event, ...detail })) + "\n";
   writeFileSync(join(DATA, "audit.jsonl"), line, { flag: "a" });
 }

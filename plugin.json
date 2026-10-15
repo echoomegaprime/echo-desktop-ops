@@ -1,0 +1,51 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "echo-desktop-ops",
+  "version": "2.0.0",
+  "description": "Truthful ECHO control deck for Codex Desktop with RAM, QUENCH GPU, fleet nodes, OpenClaw, model catalogs, Swarm readiness, GitHub, and CertForge gates.",
+  "author": {
+    "name": "ECHO OMEGA PRIME",
+    "url": "https://github.com/echoomegaprime"
+  },
+  "homepage": "https://github.com/echoomegaprime/echo-desktop-ops",
+  "repository": "https://github.com/echoomegaprime/echo-desktop-ops",
+  "license": "MIT",
+  "keywords": [
+    "echo",
+    "codex",
+    "desktop",
+    "mcp-app",
+    "openclaw",
+    "fleet",
+    "gpu",
+    "swarm"
+  ],
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/echo-control-deck/SKILL.md",
+      "interface": {
+        "displayName": "ECHO Desktop Control Deck",
+        "shortDescription": "Measured ECHO, fleet, OpenClaw, RAM, GPU, model, and build-gate status.",
+        "longDescription": "A supported Codex/ChatGPT Desktop plugin with an embedded MCP App control deck. It measures RAM and QUENCH GPU, consumes the governed fleet collector, integrates bounded read-only OpenClaw probes, distinguishes native and external model catalogs, and exposes GitHub/CertForge policy state without modifying the signed desktop package.",
+        "developerName": "ECHO OMEGA PRIME",
+        "category": "Developer Tools",
+        "capabilities": [
+          "MCP",
+          "MCP App",
+          "Live Telemetry",
+          "OpenClaw",
+          "Fleet",
+          "GPU",
+          "Model Catalogs"
+        ],
+        "websiteURL": "https://github.com/echoomegaprime/echo-desktop-ops",
+        "defaultPrompt": [
+          "Open my ECHO Desktop Control Deck.",
+          "Refresh RAM, QUENCH GPU, fleet, and OpenClaw status.",
+          "Check Astra, SOL 6.1, external model, and Swarm readiness."
+        ],
+        "brandColor": "#06B6D4"
+      }
+    }
+  }
+}

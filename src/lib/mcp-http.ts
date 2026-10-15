@@ -16,7 +16,7 @@ export function createMcpServer(opts: {
   host?: string;
 }) {
   const port = opts.port ?? Number(process.env.PORT || 8788);
-  const host = opts.host ?? "0.0.0.0";
+  const host = opts.host ?? "127.0.0.1";
   const tools = new Map(opts.tools.map((t) => [t.name, t]));
 
   async function handleRpc(body: {
@@ -89,7 +89,7 @@ export function createMcpServer(opts: {
         id,
         error: {
           code: -32000,
-          message: e instanceof Error ? e.message : String(e),
+          message: "internal_error",
         },
       };
     }
@@ -111,7 +111,17 @@ export function createMcpServer(opts: {
     }
     if (req.method === "POST" && (url.pathname === "/mcp" || url.pathname === "/")) {
       const chunks: Buffer[] = [];
-      for await (const c of req) chunks.push(c as Buffer);
+      let received = 0;
+      for await (const c of req) {
+        const chunk = c as Buffer;
+        received += chunk.length;
+        if (received > 1_048_576) {
+          res.writeHead(413, { "content-type": "application/json" });
+          res.end(JSON.stringify({ error: "request_too_large" }));
+          return;
+        }
+        chunks.push(chunk);
+      }
       let body: Record<string, unknown> = {};
       try {
         body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
